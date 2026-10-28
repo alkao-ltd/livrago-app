@@ -12,6 +12,7 @@
     input { width: 100%; box-sizing: border-box; padding: 10px; margin-bottom: 8px; font-size: 16px; }
     button { padding: 12px; font-size: 16px; background: #1e88e5; color: #fff; border: 0; border-radius: 6px; }
     #ajout { width: 100%; }
+    #resume { background: #fff; border-left: 6px solid #2e7d32; padding: 10px; margin-bottom: 12px; border-radius: 6px; line-height: 1.6; }
     .client { background: #fff; padding: 10px; margin-top: 10px; border-radius: 6px; }
     .client.livre { background: #e8f5e9; }
     .etat { margin: 6px 0 2px; font-weight: bold; }
@@ -26,10 +27,13 @@
 <body>
   <h1>LivraGo</h1>
 
+  <div id="resume"></div>
+
   <input id="nom" placeholder="Nom du client">
   <input id="adresse" placeholder="Adresse">
   <input id="tel" type="tel" placeholder="Téléphone">
   <input id="produit" placeholder="Quoi livrer ?">
+  <input id="montant" type="number" inputmode="numeric" placeholder="Montant (FCFA)">
   <button id="ajout" onclick="ajouter()">Ajouter le client</button>
 
   <div id="liste"></div>
@@ -84,7 +88,30 @@
       window.open(url, "_blank");
     }
 
+    function afficherResume() {
+      var faites = 0;
+      var encaisse = 0;
+      var reste = 0;
+      clients.forEach(function (c) {
+        var m = Number(c.montant) || 0;
+        if (c.livre) { faites++; }
+        if (c.paye) { encaisse += m; } else { reste += m; }
+      });
+      var r = document.getElementById("resume");
+      r.innerHTML = "";
+      var l1 = document.createElement("div");
+      l1.textContent = "Livraisons faites : " + faites + " sur " + clients.length;
+      var l2 = document.createElement("div");
+      l2.textContent = "Argent encaissé : " + encaisse + " FCFA";
+      var l3 = document.createElement("div");
+      l3.textContent = "Reste à encaisser : " + reste + " FCFA";
+      r.appendChild(l1);
+      r.appendChild(l2);
+      r.appendChild(l3);
+    }
+
     function afficher() {
+      afficherResume();
       var liste = document.getElementById("liste");
       liste.innerHTML = "";
       clients.forEach(function (c, i) {
@@ -92,7 +119,7 @@
         div.className = "client" + (c.livre ? " livre" : "");
 
         var infos = document.createElement("div");
-        infos.textContent = c.nom + " | " + c.adresse + " | " + c.tel + " | " + c.produit;
+        infos.textContent = c.nom + " | " + c.adresse + " | " + c.tel + " | " + c.produit + " | " + (Number(c.montant) || 0) + " FCFA";
 
         var etat = document.createElement("div");
         etat.className = "etat";
@@ -140,10 +167,13 @@
           if (tel === null) { return; }
           var produit = prompt("Quoi livrer ?", c.produit);
           if (produit === null) { return; }
+          var montant = prompt("Montant (FCFA)", Number(c.montant) || 0);
+          if (montant === null) { return; }
           c.nom = nom.trim();
           c.adresse = adresse.trim();
           c.tel = tel.trim();
           c.produit = produit.trim();
+          c.montant = Number(montant) || 0;
           sauver();
           afficher();
         }));
@@ -172,6 +202,7 @@
         adresse: document.getElementById("adresse").value.trim(),
         tel: document.getElementById("tel").value.trim(),
         produit: document.getElementById("produit").value.trim(),
+        montant: Number(document.getElementById("montant").value) || 0,
         livre: false,
         paye: false
       });
@@ -181,6 +212,7 @@
       document.getElementById("adresse").value = "";
       document.getElementById("tel").value = "";
       document.getElementById("produit").value = "";
+      document.getElementById("montant").value = "";
     }
 
     afficher();
