@@ -12,6 +12,7 @@
     input { width: 100%; box-sizing: border-box; padding: 10px; margin-bottom: 8px; font-size: 16px; }
     button { padding: 12px; font-size: 16px; background: #1e88e5; color: #fff; border: 0; border-radius: 6px; }
     #ajout { width: 100%; }
+    #installzone { display: none; background: #e3f2fd; border-left: 6px solid #1e88e5; padding: 10px; margin-bottom: 12px; border-radius: 6px; line-height: 1.5; }
     #resume { background: #fff; border-left: 6px solid #2e7d32; padding: 10px; margin-bottom: 12px; border-radius: 6px; line-height: 1.6; }
     .client { background: #fff; padding: 10px; margin-top: 10px; border-radius: 6px; }
     .client.livre { background: #e8f5e9; }
@@ -26,6 +27,8 @@
 </head>
 <body>
   <h1>LivraGo</h1>
+
+  <div id="installzone"></div>
 
   <div id="resume"></div>
 
@@ -46,6 +49,8 @@
       clients = [];
     }
 
+    var installEvent = null;
+
     function sauver() {
       localStorage.setItem("livrago_clients", JSON.stringify(clients));
     }
@@ -57,6 +62,56 @@
       b.onclick = action;
       return b;
     }
+
+    function dejaInstalle() {
+      return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+    }
+
+    function afficherInstall(message, avecBouton) {
+      var zone = document.getElementById("installzone");
+      zone.innerHTML = "";
+      zone.style.display = "block";
+      var t = document.createElement("div");
+      t.textContent = message;
+      zone.appendChild(t);
+      if (avecBouton) {
+        var b = bouton("Installer LivraGo", "vert", function () {
+          if (!installEvent) { return; }
+          installEvent.prompt();
+          installEvent.userChoice.then(function () {
+            installEvent = null;
+            zone.style.display = "none";
+          });
+        });
+        b.style.width = "100%";
+        b.style.marginTop = "8px";
+        zone.appendChild(b);
+      }
+    }
+
+    function verifierInstall() {
+      if (dejaInstalle()) { return; }
+      var ua = navigator.userAgent;
+      if (/FBAN|FBAV|Instagram|TikTok|musical_ly|Bytedance|Snapchat|; wv\)/i.test(ua)) {
+        afficherInstall("Pour installer LivraGo, ouvrez ce lien dans Chrome : appuyez sur les trois points, puis sur « Ouvrir dans Chrome » ou « Ouvrir dans le navigateur ».", false);
+        return;
+      }
+      if (/iPhone|iPad|iPod/i.test(ua)) {
+        afficherInstall("Sur iPhone : ouvrez ce lien dans Safari, appuyez sur le bouton Partager, puis sur « Sur l'écran d'accueil ».", false);
+      }
+    }
+
+    window.addEventListener("beforeinstallprompt", function (e) {
+      e.preventDefault();
+      installEvent = e;
+      if (!dejaInstalle()) {
+        afficherInstall("Installez LivraGo sur votre téléphone : il marchera comme une application, même sans internet.", true);
+      }
+    });
+
+    window.addEventListener("appinstalled", function () {
+      document.getElementById("installzone").style.display = "none";
+    });
 
     function marquerPosition(c) {
       if (!navigator.geolocation) {
@@ -216,6 +271,7 @@
     }
 
     afficher();
+    verifierInstall();
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js");
