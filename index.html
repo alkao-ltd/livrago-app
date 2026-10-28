@@ -1,1 +1,193 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LivraGo</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1e88e5">
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 12px; background: #f4f6f8; }
+    h1 { color: #1e88e5; margin: 0 0 12px; }
+    input { width: 100%; box-sizing: border-box; padding: 10px; margin-bottom: 8px; font-size: 16px; }
+    button { padding: 12px; font-size: 16px; background: #1e88e5; color: #fff; border: 0; border-radius: 6px; }
+    #ajout { width: 100%; }
+    .client { background: #fff; padding: 10px; margin-top: 10px; border-radius: 6px; }
+    .client.livre { background: #e8f5e9; }
+    .etat { margin: 6px 0 2px; font-weight: bold; }
+    .pos { margin: 2px 0 6px; font-size: 14px; color: #555; }
+    .boutons { display: flex; flex-wrap: wrap; gap: 6px; }
+    .boutons button { flex: 1 1 45%; padding: 10px 6px; font-size: 14px; }
+    .rouge { background: #e53935; }
+    .gris { background: #757575; }
+    .vert { background: #2e7d32; }
+  </style>
+</head>
+<body>
+  <h1>LivraGo</h1>
 
+  <input id="nom" placeholder="Nom du client">
+  <input id="adresse" placeholder="Adresse">
+  <input id="tel" type="tel" placeholder="Téléphone">
+  <input id="produit" placeholder="Quoi livrer ?">
+  <button id="ajout" onclick="ajouter()">Ajouter le client</button>
+
+  <div id="liste"></div>
+
+  <script>
+    var clients = [];
+    try {
+      clients = JSON.parse(localStorage.getItem("livrago_clients")) || [];
+    } catch (e) {
+      clients = [];
+    }
+
+    function sauver() {
+      localStorage.setItem("livrago_clients", JSON.stringify(clients));
+    }
+
+    function bouton(texte, classe, action) {
+      var b = document.createElement("button");
+      b.textContent = texte;
+      if (classe) { b.className = classe; }
+      b.onclick = action;
+      return b;
+    }
+
+    function marquerPosition(c) {
+      if (!navigator.geolocation) {
+        alert("Le GPS n'est pas disponible sur ce téléphone.");
+        return;
+      }
+      alert("Restez devant la maison. Appuyez sur OK, puis attendez quelques secondes.");
+      navigator.geolocation.getCurrentPosition(
+        function (p) {
+          c.lat = p.coords.latitude;
+          c.lng = p.coords.longitude;
+          c.precision = Math.round(p.coords.accuracy);
+          sauver();
+          afficher();
+        },
+        function (err) {
+          if (err.code === 1) {
+            alert("Position refusée. Autorisez la localisation pour ce site dans les réglages.");
+          } else {
+            alert("Position introuvable. Allez à l'extérieur et réessayez.");
+          }
+        },
+        { enableHighAccuracy: true, timeout: 30000, maximumAge: 0 }
+      );
+    }
+
+    function yAller(c) {
+      var url = "https://www.google.com/maps/dir/?api=1&destination=" + c.lat + "," + c.lng + "&travelmode=driving";
+      window.open(url, "_blank");
+    }
+
+    function afficher() {
+      var liste = document.getElementById("liste");
+      liste.innerHTML = "";
+      clients.forEach(function (c, i) {
+        var div = document.createElement("div");
+        div.className = "client" + (c.livre ? " livre" : "");
+
+        var infos = document.createElement("div");
+        infos.textContent = c.nom + " | " + c.adresse + " | " + c.tel + " | " + c.produit;
+
+        var etat = document.createElement("div");
+        etat.className = "etat";
+        etat.textContent = (c.livre ? "Livré" : "À livrer") + " - " + (c.paye ? "Payé" : "Non payé");
+
+        var pos = document.createElement("div");
+        pos.className = "pos";
+        if (c.lat) {
+          pos.textContent = "Position enregistrée (précision " + c.precision + " m)";
+        } else {
+          pos.textContent = "Position non marquée";
+        }
+
+        var boutons = document.createElement("div");
+        boutons.className = "boutons";
+
+        boutons.appendChild(bouton(c.livre ? "Pas livré" : "Livré", "", function () {
+          c.livre = !c.livre;
+          sauver();
+          afficher();
+        }));
+
+        boutons.appendChild(bouton(c.paye ? "Pas payé" : "Payé", "", function () {
+          c.paye = !c.paye;
+          sauver();
+          afficher();
+        }));
+
+        boutons.appendChild(bouton(c.lat ? "Marquer à nouveau" : "Marquer position", "vert", function () {
+          marquerPosition(c);
+        }));
+
+        if (c.lat) {
+          boutons.appendChild(bouton("Y aller", "", function () {
+            yAller(c);
+          }));
+        }
+
+        boutons.appendChild(bouton("Modifier", "gris", function () {
+          var nom = prompt("Nom du client", c.nom);
+          if (nom === null) { return; }
+          var adresse = prompt("Adresse", c.adresse);
+          if (adresse === null) { return; }
+          var tel = prompt("Téléphone", c.tel);
+          if (tel === null) { return; }
+          var produit = prompt("Quoi livrer ?", c.produit);
+          if (produit === null) { return; }
+          c.nom = nom.trim();
+          c.adresse = adresse.trim();
+          c.tel = tel.trim();
+          c.produit = produit.trim();
+          sauver();
+          afficher();
+        }));
+
+        boutons.appendChild(bouton("Supprimer", "rouge", function () {
+          if (confirm("Supprimer " + c.nom + " ?")) {
+            clients.splice(i, 1);
+            sauver();
+            afficher();
+          }
+        }));
+
+        div.appendChild(infos);
+        div.appendChild(etat);
+        div.appendChild(pos);
+        div.appendChild(boutons);
+        liste.appendChild(div);
+      });
+    }
+
+    function ajouter() {
+      var nom = document.getElementById("nom").value.trim();
+      if (nom === "") { return; }
+      clients.push({
+        nom: nom,
+        adresse: document.getElementById("adresse").value.trim(),
+        tel: document.getElementById("tel").value.trim(),
+        produit: document.getElementById("produit").value.trim(),
+        livre: false,
+        paye: false
+      });
+      sauver();
+      afficher();
+      document.getElementById("nom").value = "";
+      document.getElementById("adresse").value = "";
+      document.getElementById("tel").value = "";
+      document.getElementById("produit").value = "";
+    }
+
+    afficher();
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js");
+    }
+  </script>
+</body>
+  </html>
