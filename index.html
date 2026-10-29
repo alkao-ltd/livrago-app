@@ -15,6 +15,7 @@
     #partage { margin-bottom: 12px; }
     #partage button { width: 100%; }
     #lienmsg { margin-top: 6px; font-size: 14px; color: #2e7d32; line-height: 1.4; }
+    #astuce { font-size: 14px; color: #333; background: #fff8e1; border-left: 6px solid #f9a825; padding: 8px 10px; margin-bottom: 12px; border-radius: 6px; line-height: 1.5; }
     #installzone { display: none; background: #e3f2fd; border-left: 6px solid #1e88e5; padding: 10px; margin-bottom: 12px; border-radius: 6px; line-height: 1.5; }
     #resume { background: #fff; border-left: 6px solid #2e7d32; padding: 10px; margin-bottom: 12px; border-radius: 6px; line-height: 1.6; }
     .client { background: #fff; padding: 10px; margin-top: 10px; border-radius: 6px; }
@@ -37,6 +38,8 @@
     <button class="gris" onclick="copierLien()">Copier le lien de LivraGo</button>
     <div id="lienmsg"></div>
   </div>
+
+  <div id="astuce">Pour installer : touchez les trois points en haut à droite de Chrome, puis « Installer l'application » ou « Ajouter à l'écran d'accueil ».</div>
 
   <div id="resume"></div>
 
@@ -132,10 +135,15 @@
       }
     }
 
+    function cacherAstuce() {
+      document.getElementById("astuce").style.display = "none";
+    }
+
     function verifierInstall() {
-      if (dejaInstalle()) { return; }
+      if (dejaInstalle()) { cacherAstuce(); return; }
       var ua = navigator.userAgent;
       if (/FBAN|FBAV|Instagram|TikTok|musical_ly|Bytedance|Snapchat|; wv\)/i.test(ua)) {
+        cacherAstuce();
         afficherInstall("Pour installer LivraGo : appuyez sur Copier le lien, ouvrez Chrome, collez le lien dans la barre d'adresse en haut, puis validez.", false);
         return;
       }
@@ -154,6 +162,7 @@
 
     window.addEventListener("appinstalled", function () {
       document.getElementById("installzone").style.display = "none";
+      cacherAstuce();
     });
 
     function marquerPosition(c) {
@@ -321,4 +330,4 @@
     }
   </script>
 </body>
-</html>
+    </html>
