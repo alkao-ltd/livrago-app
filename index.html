@@ -76,7 +76,7 @@
     function copierLien() {
       var msg = document.getElementById("lienmsg");
       function ok() {
-        msg.textContent = "Lien copié ! Vous pouvez le coller dans WhatsApp ou TikTok.";
+        msg.textContent = "Lien copié ! Ouvrez Chrome, collez le lien dans la barre d'adresse en haut, puis validez.";
       }
       function secours() {
         var t = document.createElement("textarea");
@@ -136,7 +136,7 @@
       if (dejaInstalle()) { return; }
       var ua = navigator.userAgent;
       if (/FBAN|FBAV|Instagram|TikTok|musical_ly|Bytedance|Snapchat|; wv\)/i.test(ua)) {
-        afficherInstall("Pour installer LivraGo, ouvrez ce lien dans Chrome : appuyez sur les trois points, puis sur « Ouvrir dans Chrome » ou « Ouvrir dans le navigateur ».", false);
+        afficherInstall("Pour installer LivraGo : appuyez sur Copier le lien, ouvrez Chrome, collez le lien dans la barre d'adresse en haut, puis validez.", false);
         return;
       }
       if (/iPhone|iPad|iPod/i.test(ua)) {
