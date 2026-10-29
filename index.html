@@ -183,7 +183,7 @@
         var pos = document.createElement("div");
         pos.className = "pos";
         if (c.lat) {
-          pos.textContent = "Position enregistrée (précision " + c.precision + " m)";
+          pos.textContent = nu"Position enregistrée (précision " + c.precision + " m)";
         } else {
           pos.textContent = "Position non marquée";
         }
@@ -276,6 +276,34 @@
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js");
     }
+  <script>
+setTimeout(function(){
+  var lien="https://alkao-ltd.github.io/livrago-app/";
+  var boite=null;
+  var els=document.querySelectorAll("div,p,section");
+  for(var i=0;i<els.length;i++){
+    if(els[i].textContent.indexOf("Pour installer LivraGo")>-1 && !els[i].querySelector("div,p,section")){ boite=els[i]; break; }
+  }
+  if(!boite) return;
+  var b=document.createElement("button");
+  b.textContent="Copier le lien";
+  b.style.cssText="display:block;margin-top:10px;padding:12px 18px;font-size:16px;background:#1e88e5;color:#fff;border:0;border-radius:8px;";
+  b.onclick=function(){
+    function ok(){b.textContent="Lien copié ! Collez-le dans Chrome";}
+    function vieux(){
+      var t=document.createElement("textarea");
+      t.value=lien;
+      document.body.appendChild(t);
+      t.select();
+      try{document.execCommand("copy");ok();}catch(e){b.textContent="Copie impossible";}
+      document.body.removeChild(t);
+    }
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(lien).then(ok,vieux);
+    }else{vieux();}
+  };
+  boite.appendChild(b);
+},800);
   </script>
 </body>
   </html>
