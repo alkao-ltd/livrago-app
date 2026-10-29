@@ -12,6 +12,9 @@
     input { width: 100%; box-sizing: border-box; padding: 10px; margin-bottom: 8px; font-size: 16px; }
     button { padding: 12px; font-size: 16px; background: #1e88e5; color: #fff; border: 0; border-radius: 6px; }
     #ajout { width: 100%; }
+    #partage { margin-bottom: 12px; }
+    #partage button { width: 100%; }
+    #lienmsg { margin-top: 6px; font-size: 14px; color: #2e7d32; line-height: 1.4; }
     #installzone { display: none; background: #e3f2fd; border-left: 6px solid #1e88e5; padding: 10px; margin-bottom: 12px; border-radius: 6px; line-height: 1.5; }
     #resume { background: #fff; border-left: 6px solid #2e7d32; padding: 10px; margin-bottom: 12px; border-radius: 6px; line-height: 1.6; }
     .client { background: #fff; padding: 10px; margin-top: 10px; border-radius: 6px; }
@@ -30,6 +33,11 @@
 
   <div id="installzone"></div>
 
+  <div id="partage">
+    <button class="gris" onclick="copierLien()">Copier le lien de LivraGo</button>
+    <div id="lienmsg"></div>
+  </div>
+
   <div id="resume"></div>
 
   <input id="nom" placeholder="Nom du client">
@@ -42,6 +50,8 @@
   <div id="liste"></div>
 
   <script>
+    var LIEN = "https://alkao-ltd.github.io/livrago-app/";
+
     var clients = [];
     try {
       clients = JSON.parse(localStorage.getItem("livrago_clients")) || [];
@@ -61,6 +71,39 @@
       if (classe) { b.className = classe; }
       b.onclick = action;
       return b;
+    }
+
+    function copierLien() {
+      var msg = document.getElementById("lienmsg");
+      function ok() {
+        msg.textContent = "Lien copié ! Vous pouvez le coller dans WhatsApp ou TikTok.";
+      }
+      function secours() {
+        var t = document.createElement("textarea");
+        t.value = LIEN;
+        t.style.position = "fixed";
+        t.style.opacity = "0";
+        document.body.appendChild(t);
+        t.focus();
+        t.select();
+        var reussi = false;
+        try {
+          reussi = document.execCommand("copy");
+        } catch (e) {
+          reussi = false;
+        }
+        document.body.removeChild(t);
+        if (reussi) {
+          ok();
+        } else {
+          msg.textContent = "Copie impossible. Copiez ce lien à la main : " + LIEN;
+        }
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(LIEN).then(ok, secours);
+      } else {
+        secours();
+      }
     }
 
     function dejaInstalle() {
@@ -183,7 +226,7 @@
         var pos = document.createElement("div");
         pos.className = "pos";
         if (c.lat) {
-          pos.textContent = nu"Position enregistrée (précision " + c.precision + " m)";
+          pos.textContent = "Position enregistrée (précision " + c.precision + " m)";
         } else {
           pos.textContent = "Position non marquée";
         }
@@ -276,34 +319,6 @@
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js");
     }
-  <script>
-setTimeout(function(){
-  var lien="https://alkao-ltd.github.io/livrago-app/";
-  var boite=null;
-  var els=document.querySelectorAll("div,p,section");
-  for(var i=0;i<els.length;i++){
-    if(els[i].textContent.indexOf("Pour installer LivraGo")>-1 && !els[i].querySelector("div,p,section")){ boite=els[i]; break; }
-  }
-  if(!boite) return;
-  var b=document.createElement("button");
-  b.textContent="Copier le lien";
-  b.style.cssText="display:block;margin-top:10px;padding:12px 18px;font-size:16px;background:#1e88e5;color:#fff;border:0;border-radius:8px;";
-  b.onclick=function(){
-    function ok(){b.textContent="Lien copié ! Collez-le dans Chrome";}
-    function vieux(){
-      var t=document.createElement("textarea");
-      t.value=lien;
-      document.body.appendChild(t);
-      t.select();
-      try{document.execCommand("copy");ok();}catch(e){b.textContent="Copie impossible";}
-      document.body.removeChild(t);
-    }
-    if(navigator.clipboard&&navigator.clipboard.writeText){
-      navigator.clipboard.writeText(lien).then(ok,vieux);
-    }else{vieux();}
-  };
-  boite.appendChild(b);
-},800);
   </script>
 </body>
-  </html>
+</html>
