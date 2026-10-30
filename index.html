@@ -15,6 +15,9 @@
     #partage { margin-bottom: 12px; }
     #partage button { width: 100%; }
     #lienmsg { margin-top: 6px; font-size: 14px; color: #2e7d32; line-height: 1.4; }
+    #sauvegarde { margin-bottom: 12px; }
+    #sauvegarde button { width: 100%; margin-bottom: 6px; }
+    #savemsg { font-size: 14px; color: #2e7d32; line-height: 1.4; }
     #astuce { font-size: 14px; color: #333; background: #fff8e1; border-left: 6px solid #f9a825; padding: 8px 10px; margin-bottom: 12px; border-radius: 6px; line-height: 1.5; }
     #installzone { display: none; background: #e3f2fd; border-left: 6px solid #1e88e5; padding: 10px; margin-bottom: 12px; border-radius: 6px; line-height: 1.5; }
     #resume { background: #fff; border-left: 6px solid #2e7d32; padding: 10px; margin-bottom: 12px; border-radius: 6px; line-height: 1.6; }
@@ -37,6 +40,13 @@
   <div id="partage">
     <button class="gris" onclick="copierLien()">Copier le lien de LivraGo</button>
     <div id="lienmsg"></div>
+  </div>
+
+  <div id="sauvegarde">
+    <button class="vert" onclick="sauvegarder()">Sauvegarder mes clients (WhatsApp, Facebook...)</button>
+    <button class="gris" onclick="document.getElementById('fichier').click()">Restaurer mes clients</button>
+    <input id="fichier" type="file" accept=".txt,.json,text/plain,application/json" style="display:none" onchange="restaurer(this)">
+    <div id="savemsg"></div>
   </div>
 
   <div id="astuce">Pour installer : touchez les trois points en haut à droite de Chrome, puis « Installer l'application » ou « Ajouter à l'écran d'accueil ».</div>
@@ -107,6 +117,84 @@
       } else {
         secours();
       }
+    }
+
+    function dateDuJour() {
+      var d = new Date();
+      var m = String(d.getMonth() + 1);
+      var j = String(d.getDate());
+      if (m.length < 2) { m = "0" + m; }
+      if (j.length < 2) { j = "0" + j; }
+      return d.getFullYear() + "-" + m + "-" + j;
+    }
+
+    function sauvegarder() {
+      var msg = document.getElementById("savemsg");
+      if (clients.length === 0) {
+        msg.textContent = "Il n'y a aucun client à sauvegarder.";
+        return;
+      }
+      var contenu = JSON.stringify({ app: "livrago", date: dateDuJour(), clients: clients });
+      var nom = "livrago-sauvegarde-" + dateDuJour() + ".txt";
+      var fichier = null;
+      try {
+        fichier = new File([contenu], nom, { type: "text/plain" });
+      } catch (e) {
+        fichier = null;
+      }
+      function telecharger() {
+        var blob = new Blob([contenu], { type: "text/plain" });
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = nom;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        msg.textContent = "Sauvegarde enregistrée dans votre téléphone (dossier Téléchargements). Envoyez ce fichier sur WhatsApp pour le garder en sécurité.";
+      }
+      if (fichier && navigator.canShare && navigator.canShare({ files: [fichier] })) {
+        navigator.share({ files: [fichier], title: "Sauvegarde LivraGo" }).then(function () {
+          msg.textContent = "Sauvegarde envoyée. Gardez bien ce message ou ce fichier.";
+        }, function (err) {
+          if (err && err.name === "AbortError") {
+            msg.textContent = "Envoi annulé.";
+          } else {
+            telecharger();
+          }
+        });
+      } else {
+        telecharger();
+      }
+    }
+
+    function restaurer(input) {
+      var msg = document.getElementById("savemsg");
+      var f = input.files && input.files[0];
+      if (!f) { return; }
+      var lecteur = new FileReader();
+      lecteur.onload = function () {
+        var data = null;
+        try {
+          data = JSON.parse(lecteur.result);
+        } catch (e) {
+          data = null;
+        }
+        if (!data || data.app !== "livrago" || !Array.isArray(data.clients)) {
+          msg.textContent = "Ce fichier n'est pas une sauvegarde LivraGo.";
+          input.value = "";
+          return;
+        }
+        if (confirm("Remplacer vos " + clients.length + " clients actuels par les " + data.clients.length + " clients de la sauvegarde ?")) {
+          clients = data.clients;
+          sauver();
+          afficher();
+          msg.textContent = "Clients restaurés : " + clients.length + ".";
+        } else {
+          msg.textContent = "Restauration annulée.";
+        }
+        input.value = "";
+      };
+      lecteur.readAsText(f);
     }
 
     function dejaInstalle() {
