@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://alkao-ltd.github.io/livrago-app/sitemap.xml
