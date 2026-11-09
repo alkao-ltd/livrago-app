@@ -62,6 +62,8 @@
     .rouge { background: #e53935; }
     .gris { background: #757575; }
     .vert { background: #2e7d32; }
+    .miniphoto { display: block; max-width: 100%; max-height: 160px; border-radius: 6px; margin: 4px 0 8px; }
+    .miniphoto.grande { max-height: none; }
   </style>
 </head>
 <body>
@@ -80,6 +82,8 @@
     <input id="fichier" type="file" accept=".txt,.json,text/plain,application/json" style="display:none" onchange="restaurer(this)">
     <div id="savemsg"></div>
   </div>
+
+  <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none" onchange="traiterPhoto(this)">
 
   <div id="reglage">
     <label for="pays">Mon pays (pour les modes de paiement) :</label>
@@ -111,6 +115,7 @@
       <li>Suivre pour chaque client s'il est livré et s'il a payé.</li>
       <li>Voir le résumé de la journée : livraisons faites, argent encaissé, reste à encaisser.</li>
       <li>Noter comment chaque client a payé : espèces, T-Money, Moov Money, Orange Money, MTN MoMo, Wave et autres, selon votre pays.</li>
+      <li>Prendre une photo comme preuve de livraison.</li>
       <li>Sauvegarder vos clients et les envoyer sur WhatsApp ou Facebook.</li>
     </ul>
 
@@ -123,7 +128,7 @@
     <p>Il faut internet une seule fois pour l'installer. Ensuite LivraGo marche aussi sans internet, sauf le guidage Google Maps.</p>
 
     <h3>Mes données sont-elles en sécurité ?</h3>
-    <p>Vos clients restent sur votre téléphone. LivraGo ne les envoie à personne. Chaque livreur ne voit que ses propres clients. Pensez à utiliser le bouton de sauvegarde, car les données sont perdues si vous effacez les données de Chrome ou si vous changez de téléphone.</p>
+    <p>Vos clients restent sur votre téléphone. LivraGo ne les envoie à personne. Chaque livreur ne voit que ses propres clients. Les photos restent aussi sur votre téléphone et ne sont pas incluses dans la sauvegarde. Pensez à utiliser le bouton de sauvegarde, car les données sont perdues si vous effacez les données de Chrome ou si vous changez de téléphone.</p>
 
     <h3>LivraGo est-il gratuit ?</h3>
     <p>Oui, LivraGo est gratuit aujourd'hui. Il n'a pas besoin de compte et ne demande ni mot de passe, ni numéro de carte.</p>
@@ -142,7 +147,107 @@
       clients = [];
     }
 
+    function assignerIds() {
+      var change = false;
+      clients.forEach(function (c) {
+        if (!c.id) {
+          c.id = "c" + Date.now() + "_" + Math.floor(Math.random() * 1000000);
+          change = true;
+        }
+      });
+      return change;
+    }
+    if (assignerIds()) {
+      try { localStorage.setItem("livrago_clients", JSON.stringify(clients)); } catch (e) { e = null; }
+    }
+
     var installEvent = null;
+    var photoDB = null;
+    var photoPret = false;
+    var clientPhoto = null;
+
+    function ouvrirPhotos() {
+      try {
+        var r = indexedDB.open("livrago_photos", 1);
+        r.onupgradeneeded = function () { r.result.createObjectStore("photos"); };
+        r.onsuccess = function () { photoDB = r.result; photoPret = true; afficher(); };
+        r.onerror = function () { photoPret = true; afficher(); };
+      } catch (e) {
+        photoPret = true;
+      }
+    }
+
+    function lirePhoto(id, cb) {
+      if (!photoDB) { cb(photoPret ? null : undefined); return; }
+      try {
+        var t = photoDB.transaction("photos", "readonly");
+        var q = t.objectStore("photos").get(id);
+        q.onsuccess = function () { cb(q.result || null); };
+        q.onerror = function () { cb(null); };
+      } catch (e) {
+        cb(null);
+      }
+    }
+
+    function ecrirePhoto(id, data, ok, ko) {
+      if (!photoDB) { ko(); return; }
+      try {
+        var t = photoDB.transaction("photos", "readwrite");
+        t.objectStore("photos").put(data, id);
+        t.oncomplete = function () { ok(); };
+        t.onerror = function () { ko(); };
+        t.onabort = function () { ko(); };
+      } catch (e) {
+        ko();
+      }
+    }
+
+    function effacerPhoto(id) {
+      if (!photoDB) { return; }
+      try {
+        photoDB.transaction("photos", "readwrite").objectStore("photos").delete(id);
+      } catch (e) {
+        e = null;
+      }
+    }
+
+    function prendrePhoto(c) {
+      clientPhoto = c;
+      var i = document.getElementById("photoInput");
+      i.value = "";
+      i.click();
+    }
+
+    function traiterPhoto(input) {
+      var f = input.files && input.files[0];
+      if (!f || !clientPhoto) { return; }
+      var c = clientPhoto;
+      var img = new Image();
+      var url = URL.createObjectURL(f);
+      img.onload = function () {
+        var max = 900;
+        var k = Math.min(1, max / Math.max(img.width, img.height));
+        var cv = document.createElement("canvas");
+        cv.width = Math.round(img.width * k);
+        cv.height = Math.round(img.height * k);
+        cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+        var data = cv.toDataURL("image/jpeg", 0.6);
+        URL.revokeObjectURL(url);
+        ecrirePhoto(c.id, data, function () {
+          c.photo = true;
+          c.photoDate = new Date().toLocaleString("fr-FR");
+          sauver();
+          afficher();
+        }, function () {
+          alert("Impossible d'enregistrer la photo sur ce téléphone.");
+        });
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        alert("Photo illisible. Réessayez.");
+      };
+      img.src = url;
+    }
 
     var PAYS = {
       "Togo": ["T-Money", "Moov Money", "Gozem Money"],
@@ -303,6 +408,7 @@
         }
         if (confirm("Remplacer vos " + clients.length + " clients actuels par les " + data.clients.length + " clients de la sauvegarde ?")) {
           clients = data.clients;
+          assignerIds();
           sauver();
           afficher();
           msg.textContent = "Clients restaurés : " + clients.length + ".";
@@ -490,6 +596,30 @@
           pos.textContent = "Position non marquée";
         }
 
+        var photoZone = document.createElement("div");
+        if (c.photo) {
+          var infoPhoto = document.createElement("div");
+          infoPhoto.className = "pos";
+          infoPhoto.textContent = "Photo preuve prise le " + (c.photoDate || "");
+          var im = document.createElement("img");
+          im.className = "miniphoto";
+          im.alt = "Photo preuve";
+          im.onclick = function () { im.classList.toggle("grande"); };
+          photoZone.appendChild(infoPhoto);
+          photoZone.appendChild(im);
+          lirePhoto(c.id, function (d) {
+            if (d) {
+              im.src = d;
+            } else if (d === null) {
+              im.style.display = "none";
+              infoPhoto.textContent = "Photo introuvable sur ce téléphone (les photos ne sont pas dans la sauvegarde).";
+            } else {
+              im.style.display = "none";
+              infoPhoto.textContent = "Chargement de la photo...";
+            }
+          });
+        }
+
         var boutons = document.createElement("div");
         boutons.className = "boutons";
 
@@ -515,6 +645,22 @@
           }));
         }
 
+        boutons.appendChild(bouton(c.photo ? "Refaire la photo" : "Photo preuve", "vert", function () {
+          prendrePhoto(c);
+        }));
+
+        if (c.photo) {
+          boutons.appendChild(bouton("Retirer la photo", "gris", function () {
+            if (confirm("Retirer la photo de " + c.nom + " ?")) {
+              effacerPhoto(c.id);
+              c.photo = false;
+              c.photoDate = "";
+              sauver();
+              afficher();
+            }
+          }));
+        }
+
         boutons.appendChild(bouton("Modifier", "gris", function () {
           var nom = prompt("Nom du client", c.nom);
           if (nom === null) { return; }
@@ -537,6 +683,7 @@
 
         boutons.appendChild(bouton("Supprimer", "rouge", function () {
           if (confirm("Supprimer " + c.nom + " ?")) {
+            if (c.photo) { effacerPhoto(c.id); }
             clients.splice(i, 1);
             sauver();
             afficher();
@@ -547,6 +694,7 @@
         div.appendChild(etat);
         div.appendChild(zoneMode);
         div.appendChild(pos);
+        div.appendChild(photoZone);
         div.appendChild(boutons);
         liste.appendChild(div);
       });
@@ -556,6 +704,7 @@
       var nom = document.getElementById("nom").value.trim();
       if (nom === "") { return; }
       clients.push({
+        id: "c" + Date.now() + "_" + Math.floor(Math.random() * 1000000),
         nom: nom,
         adresse: document.getElementById("adresse").value.trim(),
         tel: document.getElementById("tel").value.trim(),
@@ -575,6 +724,7 @@
 
     remplirPays();
     afficher();
+    ouvrirPhotos();
     verifierInstall();
 
     if ("serviceWorker" in navigator) {
