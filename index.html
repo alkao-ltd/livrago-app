@@ -41,6 +41,10 @@
     #sauvegarde { margin-bottom: 12px; }
     #sauvegarde button { width: 100%; margin-bottom: 6px; }
     #savemsg { font-size: 14px; color: #2e7d32; line-height: 1.4; }
+    #reglage { margin-bottom: 12px; font-size: 14px; color: #333; }
+    select { width: 100%; box-sizing: border-box; padding: 10px; font-size: 16px; margin: 4px 0 8px; background: #fff; border: 1px solid #757575; border-radius: 6px; }
+    .mode { font-size: 14px; color: #333; }
+    .detailmode { font-size: 14px; margin-left: 14px; color: #333; }
     #apropos { background: #fff; padding: 14px; margin-top: 24px; border-radius: 6px; line-height: 1.6; font-size: 15px; color: #333; }
     #apropos h2 { color: #1e88e5; font-size: 20px; margin: 0 0 8px; }
     #apropos h3 { color: #2e7d32; font-size: 16px; margin: 16px 0 4px; }
@@ -77,6 +81,11 @@
     <div id="savemsg"></div>
   </div>
 
+  <div id="reglage">
+    <label for="pays">Mon pays (pour les modes de paiement) :</label>
+    <select id="pays" onchange="changerPays(this.value)"></select>
+  </div>
+
   <div id="astuce">Pour installer : touchez les trois points en haut à droite de Chrome, puis « Installer l'application » ou « Ajouter à l'écran d'accueil ».</div>
 
   <div id="resume"></div>
@@ -101,6 +110,7 @@
       <li>Retrouver chaque maison ensuite avec le bouton « Y aller » (Google Maps).</li>
       <li>Suivre pour chaque client s'il est livré et s'il a payé.</li>
       <li>Voir le résumé de la journée : livraisons faites, argent encaissé, reste à encaisser.</li>
+      <li>Noter comment chaque client a payé : espèces, T-Money, Moov Money, Orange Money, MTN MoMo, Wave et autres, selon votre pays.</li>
       <li>Sauvegarder vos clients et les envoyer sur WhatsApp ou Facebook.</li>
     </ul>
 
@@ -119,7 +129,7 @@
     <p>Oui, LivraGo est gratuit aujourd'hui. Il n'a pas besoin de compte et ne demande ni mot de passe, ni numéro de carte.</p>
 
     <h3>Pour quels pays ?</h3>
-    <p>LivraGo a été pensé à Lomé, au Togo, et peut servir aux livreurs de tous les pays. Les montants sont en FCFA.</p>
+    <p>LivraGo a été pensé à Lomé, au Togo, et peut servir aux livreurs de tous les pays. Les montants sont en FCFA, la monnaie du Togo, du Bénin, de la Côte d'Ivoire, du Sénégal, du Burkina Faso, du Mali et du Niger. Les modes de paiement changent selon le pays choisi.</p>
   </section>
 
   <script>
@@ -133,6 +143,53 @@
     }
 
     var installEvent = null;
+
+    var PAYS = {
+      "Togo": ["T-Money", "Moov Money", "Gozem Money"],
+      "Bénin": ["MTN MoMo", "Moov Money", "Celtiis"],
+      "Côte d'Ivoire": ["Wave", "Orange Money", "MTN MoMo", "Moov Money"],
+      "Sénégal": ["Wave", "Orange Money", "Free Money", "Wizall", "E-Money"],
+      "Burkina Faso": ["Orange Money", "Moov Money", "Wave"],
+      "Mali": ["Orange Money", "Moov Money"],
+      "Niger": ["Airtel Money", "Moov Money", "Zamani Cash"],
+      "Guinée-Bissau": []
+    };
+
+    function paysChoisi() {
+      var p = null;
+      try {
+        p = localStorage.getItem("livrago_pays");
+      } catch (e) {
+        p = null;
+      }
+      if (p && PAYS[p]) { return p; }
+      return "Togo";
+    }
+
+    function modesDuPays() {
+      return ["Espèces"].concat(PAYS[paysChoisi()]).concat(["Autre"]);
+    }
+
+    function changerPays(nom) {
+      try {
+        localStorage.setItem("livrago_pays", nom);
+      } catch (e) {
+        e = null;
+      }
+      afficher();
+    }
+
+    function remplirPays() {
+      var sel = document.getElementById("pays");
+      sel.innerHTML = "";
+      Object.keys(PAYS).forEach(function (nom) {
+        var o = document.createElement("option");
+        o.value = nom;
+        o.textContent = nom;
+        sel.appendChild(o);
+      });
+      sel.value = paysChoisi();
+    }
 
     function sauver() {
       localStorage.setItem("livrago_clients", JSON.stringify(clients));
@@ -351,10 +408,17 @@
       var faites = 0;
       var encaisse = 0;
       var reste = 0;
+      var parMode = {};
       clients.forEach(function (c) {
         var m = Number(c.montant) || 0;
         if (c.livre) { faites++; }
-        if (c.paye) { encaisse += m; } else { reste += m; }
+        if (c.paye) {
+          encaisse += m;
+          var k = c.mode || "Mode non précisé";
+          parMode[k] = (parMode[k] || 0) + m;
+        } else {
+          reste += m;
+        }
       });
       var r = document.getElementById("resume");
       r.innerHTML = "";
@@ -366,6 +430,14 @@
       l3.textContent = "Reste à encaisser : " + reste + " FCFA";
       r.appendChild(l1);
       r.appendChild(l2);
+      Object.keys(parMode).forEach(function (k) {
+        if (parMode[k] > 0) {
+          var d = document.createElement("div");
+          d.className = "detailmode";
+          d.textContent = "- " + k + " : " + parMode[k] + " FCFA";
+          r.appendChild(d);
+        }
+      });
       r.appendChild(l3);
     }
 
@@ -383,6 +455,32 @@
         var etat = document.createElement("div");
         etat.className = "etat";
         etat.textContent = (c.livre ? "Livré" : "À livrer") + " - " + (c.paye ? "Payé" : "Non payé");
+
+        var zoneMode = document.createElement("div");
+        zoneMode.className = "mode";
+        var etiquette = document.createElement("div");
+        etiquette.textContent = "Mode de paiement :";
+        var choix = document.createElement("select");
+        var vide = document.createElement("option");
+        vide.value = "";
+        vide.textContent = "Choisir le mode";
+        choix.appendChild(vide);
+        var modes = modesDuPays();
+        if (c.mode && modes.indexOf(c.mode) === -1) { modes.push(c.mode); }
+        modes.forEach(function (nomMode) {
+          var o = document.createElement("option");
+          o.value = nomMode;
+          o.textContent = nomMode;
+          choix.appendChild(o);
+        });
+        choix.value = c.mode || "";
+        choix.onchange = function () {
+          c.mode = choix.value;
+          sauver();
+          afficherResume();
+        };
+        zoneMode.appendChild(etiquette);
+        zoneMode.appendChild(choix);
 
         var pos = document.createElement("div");
         pos.className = "pos";
@@ -447,6 +545,7 @@
 
         div.appendChild(infos);
         div.appendChild(etat);
+        div.appendChild(zoneMode);
         div.appendChild(pos);
         div.appendChild(boutons);
         liste.appendChild(div);
@@ -474,6 +573,7 @@
       document.getElementById("montant").value = "";
     }
 
+    remplirPays();
     afficher();
     verifierInstall();
 
